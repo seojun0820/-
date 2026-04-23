@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>암호 생성기 + 저장</title>
+<style>
+  body { font-family: Arial; text-align: center; margin-top: 40px; }
+  input, button { padding: 8px; margin: 5px; }
+  #result { margin-top: 15px; font-weight: bold; }
+
+  .symbol-btn {
+    padding: 6px;
+    margin: 2px;
+    cursor: pointer;
+  }
+  .active {
+    background: black;
+    color: white;
+  }
+
+  table { margin: 20px auto; border-collapse: collapse; }
+  td, th { border: 1px solid #ccc; padding: 8px; }
+
+  #timer {
+    margin-top: 10px;
+    font-weight: bold;
+    color: red;
+  }
+</style>
+</head>
+<body>
+
+<h1>🔐 암호 생성기</h1>
+
+길이: <input type="number" id="length" value="12"><br>
+
+<label><input type="checkbox" id="upper" checked>대문자</label>
+<label><input type="checkbox" id="lower" checked>소문자</label>
+<label><input type="checkbox" id="number" checked>숫자</label>
+<label><input type="checkbox" id="symbol" checked>특수문자</label><br>
+
+<h3>특수문자 선택</h3>
+<div>
+  <button class="symbol-btn" onclick="toggleSymbol(this)">!</button>
+  <button class="symbol-btn" onclick="toggleSymbol(this)">@</button>
+  <button class="symbol-btn" onclick="toggleSymbol(this)">#</button>
+  <button class="symbol-btn" onclick="toggleSymbol(this)">$</button>
+  <button class="symbol-btn" onclick="toggleSymbol(this)">%</button>
+  <button class="symbol-btn" onclick="toggleSymbol(this)">&</button>
+  <button class="symbol-btn" onclick="toggleSymbol(this)">*</button>
+</div>
+
+<br>
+직접 입력: <input type="text" id="customSymbols"><br>
+
+<button onclick="generatePassword()">생성</button>
+<button onclick="copyPassword()">복사</button>
+
+<div id="result"></div>
+<div id="timer"></div>
+
+<hr>
+
+<h2>💾 비밀번호 저장</h2>
+사이트: <input type="text" id="site"><br>
+비밀번호: <input type="text" id="savedPw"><br>
+<button onclick="savePassword()">저장</button>
+
+<hr>
+
+<h2>🔒 목록 보기</h2>
+마스터 비밀번호: <input type="password" id="masterInput">
+<button onclick="checkMaster()">확인</button>
+
+<div id="vault" style="display:none;">
+  <h3>저장된 목록</h3>
+  <table id="table">
+    <tr><th>사이트</th><th>비밀번호</th><th>삭제</th></tr>
+  </table>
+</div>
+
+<script>
+
+let countdown;
+let currentPassword = "";
+
+// 특수문자 토글
+function toggleSymbol(btn) {
+  btn.classList.toggle("active");
+}
+
+// 선택된 특수문자
+function getSelectedSymbols() {
+  const buttons = document.querySelectorAll(".symbol-btn.active");
+  let selected = "";
+
+  buttons.forEach(btn => selected += btn.innerText);
+
+  const custom = document.getElementById("customSymbols").value;
+
+  return [...new Set((selected + custom).replace(/\s/g, ''))].join('');
+}
+
+// 암호 생성
+function generatePassword() {
+
+  let length = Number(document.getElementById("length").value);
+  if (!length || length < 4) length = 12;
+  if (length > 50) length = 50;
+
+  const upper = document.getElementById("upper").checked;
+  const lower = document.getElementById("lower").checked;
+  const number = document.getElementById("number").checked;
+  const symbol = document.getElementById("symbol").checked;
+
+  let chars = "";
+  let password = "";
+
+  const upperSet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const lowerSet = "abcdefghijklmnopqrstuvwxyz";
+  const numberSet = "0123456789";
+  let symbolSet = "!@#$%^&*()";
+
+  if (upper) {
+    chars += upperSet;
+    password += upperSet[Math.floor(Math.random() * upperSet.length)];
+  }
+
+  if (lower) {
+    chars += lowerSet;
+    password += lowerSet[Math.floor(Math.random() * lowerSet.length)];
+  }
+
+  if (number) {
+    chars += numberSet;
+    password += numberSet[Math.floor(Math.random() * numberSet.length)];
+  }
+
+  if (symbol) {
+    const selected = getSelectedSymbols();
+    if (selected) symbolSet = selected;
+
+    chars += symbolSet;
+
+    for (let i = 0; i < symbolSet.length; i++) {
+      password += symbolSet[i];
+    }
+  }
+
+  for (let i = password.length; i < length; i++) {
+    password += chars[Math.floor(Math.random() * chars.length)];
+  }
+
+  password = password.split('').sort(() => 0.5 - Math.random()).join('');
+
+  currentPassword = password;
+
+  document.getElementById("result").innerText = password;
+  document.getElementById("savedPw").value = password;
+
+  startTimer();
+}
+
+// ⏳ 20초 타이머
+function startTimer() {
+  let time = 20;
+  const timerBox = document.getElementById("timer");
+
+  clearInterval(countdown);
+
+  timerBox.innerText = `⏳ ${time}초 남음`;
+
+  countdown = setInterval(() => {
+    time--;
+    timerBox.innerText = `⏳ ${time}초 남음`;
+
+    if (time <= 0) {
+      clearInterval(countdown);
+      document.getElementById("result").innerText = "";
+      timerBox.innerText = "⛔ 만료됨";
+      currentPassword = "";
+    }
+  }, 1000);
+}
+
+// 복사 (⭐ 수정된 부분)
+function copyPassword() {
+  if (!currentPassword) return;
+
+  navigator.clipboard.writeText(currentPassword);
+  alert("복사 완료!");
+
+  // ⭐ 타이머 중지
+  clearInterval(countdown);
+  document.getElementById("timer").innerText = "⏸ 복사됨 (자동 삭제 중지)";
+}
+
+// 저장
+function savePassword() {
+  const site = document.getElementById("site").value;
+  const pw = document.getElementById("savedPw").value;
+
+  if (!site || !pw) {
+    alert("입력하세요!");
+    return;
+  }
+
+  let data = JSON.parse(localStorage.getItem("vault") || "[]");
+
+  if (data.some(item => item.pw === pw)) {
+    alert("이미 저장된 비밀번호입니다!");
+    return;
+  }
+
+  data.push({site, pw});
+  localStorage.setItem("vault", JSON.stringify(data));
+
+  alert("저장 완료!");
+}
+
+// 마스터
+function checkMaster() {
+  let master = localStorage.getItem("master");
+
+  if (!master) {
+    let newPw = prompt("마스터 비밀번호 설정:");
+    localStorage.setItem("master", newPw);
+    alert("설정 완료!");
+    return;
+  }
+
+  const input = document.getElementById("masterInput").value;
+
+  if (input === master) {
+    showVault();
+  } else {
+    alert("틀림!");
+  }
+}
+
+// 목록 표시
+function showVault() {
+  document.getElementById("vault").style.display = "block";
+
+  let data = JSON.parse(localStorage.getItem("vault") || "[]");
+  const table = document.getElementById("table");
+
+  table.innerHTML = "<tr><th>사이트</th><th>비밀번호</th><th>삭제</th></tr>";
+
+  data.forEach((item, index) => {
+    let row = table.insertRow();
+    row.insertCell(0).innerText = item.site;
+    row.insertCell(1).innerText = item.pw;
+    row.insertCell(2).innerHTML = `<button onclick="deleteItem(${index})">삭제</button>`;
+  });
+}
+
+// 삭제
+function deleteItem(index) {
+  let data = JSON.parse(localStorage.getItem("vault") || "[]");
+  data.splice(index, 1);
+  localStorage.setItem("vault", JSON.stringify(data));
+  showVault();
+}
+
+</script>
+
+</body>
+</html>
